@@ -40,14 +40,14 @@
  * 降水確率：00-06/06-12/12-18/18-24
 */
 
-const rp = require('request-promise');
+const rp      = require('request-promise');
 const cheerio = require('cheerio');
-const url = 'https://www.jma.go.jp/jp/week/index.html';
+const urlJMA  = 'https://www.jma.go.jp/jp/week/';
 
 const JSONfy = (name, arr, end=',') =>
   console.log(`"${name}":` + JSON.stringify(arr) + end);
 
-rp(url)
+rp(urlJMA)
   .then(html => {
     // success!
     const $ = cheerio.load(html);
@@ -84,6 +84,7 @@ rp(url)
         let mintemp = [];
         let maxtemp = [];
         let pop     = [];
+        let topbot  = [];
         $(elem).siblings('td[class=forecast]').each((j, el) => {
             const em =            $(el).children('img');
             image.push           ($(em).attr('src'));                             // image file
@@ -92,16 +93,20 @@ rp(url)
             maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp
             pop.push             ($(el).children('.pop').text());      // rain possibility
         });
+        $(elem).parent().next().children('td[class^=topbottom]').each((k, el) => {
+            topbot.push($(el).text());
+        });
         console.log('{"area":"' + area[i] + '",');
         JSONfy("image",   image);
         JSONfy("title",   title);
         JSONfy("mintemp", mintemp);
         JSONfy("maxtemp", maxtemp);
-        JSONfy("pop",     pop, '}' + (i < i_last ? ',' : ''));
+        JSONfy("pop",     pop);
+        JSONfy("topbot",  topbot, '}' + (i < i_last ? ',' : ''));
     });
     console.log(']}');
   })
   .catch(err => {
     // handle error
-    console.log('🚨', url, err);
+    console.log('🚨', urlJMA, err);
   })
