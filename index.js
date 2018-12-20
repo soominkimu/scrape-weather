@@ -3,9 +3,49 @@
 // Soomin K., Dec.20, 2018
 // for dynamics web site, need to use Google's puppeteer
 
+/* Current structure for the weekly weather report that covers all 22 areas in Japan
+ * ---------------------------------------------------------------------------------- *
+<table class="forecastlist" id="infotablefont">
+  <caption style="text-align:left;">12月20日11時　全国主要地点の週間天気予報</caption>
+  <tbody>
+    <tr>
+      <th class="weekday">日付</th>
+      <th class="weekday">"21"<br>"金"</th>
+      ...
+    </tr>
+    <tr>
+      <td rowspan="2" class="area">"釧路"<br>...</td>
+      <td class="forecast">
+        <img src="img/100.png" align="middle" width="60" title="晴れ" alt="晴れ"><br>
+        <font class="mintemp">-10</font>"&nbsp;/"
+        <font class="maxtemp">2</font><br>
+        <font class="pop">0/0/0/0</font><br>
+      </td>
+      <td class="forecast">
+        ...
+    </tr>
+    <tr>
+      <td class="topbottom">／</td>
+      <td class="topbottom">／</td>
+      <td class="topbottom-bgc">Ｃ</td>
+      <td class="topbottom-bgc">Ｃ</td>
+      <td class="topbottom">Ａ</td>
+      <td class="topbottom-bgb">Ｂ</td>
+      <td class="topbottom-bgb">Ｂ</td>
+    </tr>
+    ...
+  </tbody>
+</table>
+ * ---------------------------------------------------------------------------------- *
+ * 降水確率：00-06/06-12/12-18/18-24
+*/
+
 const rp = require('request-promise');
 const cheerio = require('cheerio');
 const url = 'https://www.jma.go.jp/jp/week/index.html';
+
+const JSONfy = (name, arr, end=',') =>
+  console.log(`"${name}":` + JSON.stringify(arr) + end);
 
 rp(url)
   .then(html => {
@@ -22,35 +62,46 @@ rp(url)
     // caption contains the report time, for example:
     // 12月20日17時　全国主要地点の週間天気予報
     const caption = fT.children('caption').text();
-    console.log(caption);
+    console.log('{"date-report":' + JSON.stringify(caption.split('　')[0]) + ',');
 
-    // get only the first row of the data columns
-    fT.find('tbody > tr').first().children('th').each((k, e) => {
-      console.log(k, $(e).text());
+    const fTbody = fT.find('tbody');
+
+    // get only the first row of the date columns
+    const dateCol = [];
+    fTbody.find('tr').first().children('th').each((i, el) => {
+        dateCol.push($(el).text());
       }
     );
-
+    console.log('"date-col":' + JSON.stringify(dateCol) + ',');
+    console.log('"forecast":[');
     let area = [];
-    fT.find('td[class=area]').each((i, elem) => {
-      area[i] = $(elem).text().trim();  // trim to remove /n
-      console.log('area #####', i, area[i]);
-      let title   = [];
-      let mintemp = [];
-      let maxtemp = [];
-      let pop     = [];
-      $(elem).siblings('td[class=forecast]').each((j, el) => {
-        title[j]   = $(el).children('img').attr('title');          // status
-        mintemp[j] = $(el).children('font[class=mintemp]').text(); // low temp
-        maxtemp[j] = $(el).children('font[class=maxtemp]').text(); // high temp
-        pop[j]     = $(el).children('font[class=pop]').text();     // rain possibility
-      });
-      console.log('title  :', title);
-      console.log('mintemp:', mintemp);
-      console.log('maxtemp:', maxtemp);
-      console.log('pop    :', pop);
+    const fArea = fTbody.find('td[class=area]');
+    const i_last = fArea.length - 1;
+    fArea.each((i, elem) => {
+        area.push($(elem).text().trim());  // trim to remove the trailing newline
+        let image   = [];
+        let title   = [];
+        let mintemp = [];
+        let maxtemp = [];
+        let pop     = [];
+        $(elem).siblings('td[class=forecast]').each((j, el) => {
+            const em =            $(el).children('img');
+            image.push           ($(em).attr('src'));                             // image file
+            title.push           ($(em).attr('title'));                           // status
+            mintemp.push(parseInt($(el).children('.mintemp').text())); // low temp
+            maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp
+            pop.push             ($(el).children('.pop').text());      // rain possibility
+        });
+        console.log('{"area":"' + area[i] + '",');
+        JSONfy("image",   image);
+        JSONfy("title",   title);
+        JSONfy("mintemp", mintemp);
+        JSONfy("maxtemp", maxtemp);
+        JSONfy("pop",     pop, '}' + (i < i_last ? ',' : ''));
     });
+    console.log(']}');
   })
   .catch(err => {
     // handle error
-    console.log(err);
+    console.log('🚨', url, err);
   })
