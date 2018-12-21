@@ -1,7 +1,9 @@
 // 全国主要地点の週間天気予報
 // Wep scraping by node.js
 // Soomin K., Dec.20, 2018
-// for dynamics web site, need to use Google's puppeteer
+
+// Usage:
+// $ node index.js > report.json
 
 /* Current structure for the weekly weather report that covers all 22 areas in Japan
  * ---------------------------------------------------------------------------------- *
@@ -39,15 +41,37 @@
  * ---------------------------------------------------------------------------------- *
  * 降水確率：00-06/06-12/12-18/18-24
 */
+// DEPENDENCIES:
+// - request: Simplified HTTP client
+// - request-promise: The simplified HTTP request client 'request' with Promise support.
+//   Powered by Bluebird.
+// - cheerio: Fast, flexible & lean implementation of core jQuery designed specifically for the server.
+//   Wraps around htmlparser2 (a forgiving HTML/XML/RSS parser)
+// * For dynamics websites (server-side rendering), need to use Google's puppeteer (headless Chrome)
 
-const rp      = require('request-promise');
+const reqprom = require('request-promise');
 const cheerio = require('cheerio');
 const urlJMA  = 'https://www.jma.go.jp/jp/week/';
 
 const JSONfy = (name, arr, end=',') =>
-  console.log(`"${name}":` + JSON.stringify(arr) + end);
+  console.log(`"${name}":` + JSON.stringify(arr).replace('null', '') + end);
 
-rp(urlJMA)
+// 信頼度（ＡＢＣ）　3日目以降の降水の有無の予報について「予報が適中しやすい」ことと
+// 「予報が変わりにくい」ことを表す情報で、予報の確度が高い順にＡ、Ｂ、Ｃの3段階で表します。
+const getReliabilityLevel = (tb) => { // from tobbotom.. attributes
+  switch (tb) {
+    case '／': return 0;
+    case 'Ａ': return 1;
+    case 'Ｂ': return 2;
+    case 'Ｃ': return 3;
+    default  : return -1;  // error
+  }
+}
+
+const getStatus = (fn) =>  // from image filename
+  parseInt(fn.replace(/^.*[\\\/]/, '').split('.')[0]);  // RegExp to get only the filename
+
+reqprom(urlJMA)
   .then(html => {
     // success!
     const $ = cheerio.load(html);
@@ -74,35 +98,35 @@ rp(urlJMA)
     );
     console.log('"date-col":' + JSON.stringify(dateCol) + ',');
     console.log('"forecast":[');
-    let area = [];
-    const fArea = fTbody.find('td[class=area]');
+    const fArea  = fTbody.find('td[class=area]');
     const i_last = fArea.length - 1;
+    let area = [];
     fArea.each((i, elem) => {
         area.push($(elem).text().trim());  // trim to remove the trailing newline
-        let image   = [];
+        let status  = [];
         let title   = [];
         let mintemp = [];
         let maxtemp = [];
         let pop     = [];
-        let topbot  = [];
+        let relilev = [];
         $(elem).siblings('td[class=forecast]').each((j, el) => {
             const em =            $(el).children('img');
-            image.push           ($(em).attr('src'));                             // image file
-            title.push           ($(em).attr('title'));                           // status
-            mintemp.push(parseInt($(el).children('.mintemp').text())); // low temp
-            maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp
-            pop.push             ($(el).children('.pop').text());      // rain possibility
+            status.push(getStatus($(em).attr('src')));                 // from image filename take status #
+            title.push           ($(em).attr('title'));                // status is in title or alt attrib.
+            mintemp.push(parseInt($(el).children('.mintemp').text())); // low  temp (can be null)
+            maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp (can be null)
+            pop.push             ($(el).children('.pop').text());      // rain possibility (can contain '-')
         });
         $(elem).parent().next().children('td[class^=topbottom]').each((k, el) => {
-            topbot.push($(el).text());
+            relilev.push(getReliabilityLevel($(el).text()));
         });
         console.log('{"area":"' + area[i] + '",');
-        JSONfy("image",   image);
+        JSONfy("status",  status);
         JSONfy("title",   title);
         JSONfy("mintemp", mintemp);
         JSONfy("maxtemp", maxtemp);
         JSONfy("pop",     pop);
-        JSONfy("topbot",  topbot, '}' + (i < i_last ? ',' : ''));
+        JSONfy("relilev", relilev, '}' + (i < i_last ? ',' : ''));
     });
     console.log(']}');
   })
