@@ -102,31 +102,31 @@ reqprom(urlJMA)
     const i_last = fArea.length - 1;
     let area = [];
     fArea.each((i, elem) => {
-        area.push($(elem).text().trim());  // trim to remove the trailing newline
-        let status  = [];
-        let title   = [];
-        let mintemp = [];
-        let maxtemp = [];
-        let pop     = [];
-        let relilev = [];
-        $(elem).siblings('td[class=forecast]').each((j, el) => {
-            const em =            $(el).children('img');
-            status.push(getStatus($(em).attr('src')));                 // from image filename take status #
-            title.push           ($(em).attr('title'));                // status is in title or alt attrib.
-            mintemp.push(parseInt($(el).children('.mintemp').text())); // low  temp (can be null)
-            maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp (can be null)
-            pop.push             ($(el).children('.pop').text());      // rain possibility (can contain '-')
-        });
-        $(elem).parent().next().children('td[class^=topbottom]').each((k, el) => {
-            relilev.push(getReliabilityLevel($(el).text()));
-        });
-        console.log('{"area":"' + area[i] + '",');
-        JSONfy("status",  status);
-        JSONfy("title",   title);
-        JSONfy("mintemp", mintemp);
-        JSONfy("maxtemp", maxtemp);
-        JSONfy("pop",     pop);
-        JSONfy("relilev", relilev, '}' + (i < i_last ? ',' : ''));
+      area.push($(elem).text().trim());  // trim to remove the trailing newline
+      let status  = [];
+      let title   = [];
+      let mintemp = [];
+      let maxtemp = [];
+      let pop     = [];
+      let relilev = [];
+      $(elem).siblings('td[class=forecast]').each((j, el) => {
+        const em =            $(el).children('img');
+        status.push(getStatus($(em).attr('src')));                 // from image filename take status #
+        title.push           ($(em).attr('title'));                // status is in title or alt attrib.
+        mintemp.push(parseInt($(el).children('.mintemp').text())); // low  temp (can be null)
+        maxtemp.push(parseInt($(el).children('.maxtemp').text())); // high temp (can be null)
+        pop.push             ($(el).children('.pop').text());      // rain possibility (can contain '-')
+      });
+      $(elem).parent().next().children('td[class^=topbottom]').each((k, el) => {
+        relilev.push(getReliabilityLevel($(el).text()));
+      });
+      console.log('{"area":"' + area[i] + '",');
+      JSONfy("status",  status);
+      JSONfy("title",   title);
+      JSONfy("mintemp", mintemp);
+      JSONfy("maxtemp", maxtemp);
+      JSONfy("pop",     pop);
+      JSONfy("relilev", relilev, '}' + (i < i_last ? ',' : ''));
     });
     console.log(']}');
   })
